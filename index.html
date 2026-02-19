@@ -36,22 +36,13 @@
       padding: 50px 20px 40px;
       border-bottom: 2px solid rgba(0,255,136,0.3);
       margin-bottom: 30px;
-      background: rgba(10,10,10,0.85);
-      box-shadow: 0 0 40px rgba(0,255,136,0.1);
     }
 
     h1 {
       font-size: clamp(3em, 8vw, 5em);
       letter-spacing: 12px;
-      text-shadow: 0 0 30px #00ff88, 0 0 60px rgba(0,255,136,0.4);
-      animation: glitch 5s infinite;
-    }
-
-    @keyframes glitch {
-      0%,89%,100% { transform: translate(0); text-shadow: 0 0 30px #00ff88, 0 0 60px rgba(0,255,136,0.4); }
-      90% { transform: translate(-3px, 2px); text-shadow: -3px 0 #ff0044, 3px 0 #00ffff; }
-      92% { transform: translate(3px, -2px); text-shadow: 3px 0 #ff0044, -3px 0 #00ffff; }
-      94% { transform: translate(-1px, 1px); text-shadow: 0 0 30px #00ff88; }
+      text-shadow: 0 0 15px rgba(0,255,136,0.4);
+      opacity: 0.6;
     }
 
     .meme-count {
@@ -65,12 +56,29 @@
 
     /* UPLOAD SECTION */
     .upload-section {
-      background: rgba(0,255,136,0.03);
-      border: 1px solid rgba(0,255,136,0.25);
-      padding: 30px;
       margin-bottom: 40px;
       text-align: center;
-      box-shadow: inset 0 0 30px rgba(0,255,136,0.05);
+    }
+
+    .drop-zone {
+      border: 2px dashed rgba(0,255,136,0.3);
+      padding: 60px 40px;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+      background: rgba(0,255,136,0.02);
+    }
+
+    .drop-zone.drag-over {
+      border-color: #00ff88;
+      background: rgba(0,255,136,0.08);
+      box-shadow: 0 0 30px rgba(0,255,136,0.2);
+    }
+
+    .drop-zone-text {
+      font-size: 0.9em;
+      opacity: 0.5;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
     }
 
     #fileInput { display: none; }
@@ -391,10 +399,13 @@
   </header>
 
   <div class="upload-section">
-    <input type="file" id="fileInput" accept="image/*" multiple webkitdirectory directory>
-    <button class="btn" onclick="document.getElementById('fileInput').click()" id="uploadBtn">
-      + UPLOAD
-    </button>
+    <div class="drop-zone" id="dropZone">
+      <div class="drop-zone-text">DRAG IMAGES HERE OR</div>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+      <button class="btn" onclick="document.getElementById('fileInput').click()" id="uploadBtn">
+        + UPLOAD
+      </button>
+    </div>
     <div class="status-msg" id="statusMsg"></div>
     <div class="progress-wrap" id="progressWrap">
       <div class="progress-bar" id="progressBar"></div>
@@ -520,9 +531,9 @@
   }
 
   // ── Upload Files ─────────────────────────────────────────────
-  document.getElementById('fileInput').addEventListener('change', async function (e) {
-    const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
-    if (!files.length) return;
+  async function handleFiles(files) {
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (!imageFiles.length) return;
 
     const btn = document.getElementById('uploadBtn');
     const progressWrap = document.getElementById('progressWrap');
@@ -533,8 +544,8 @@
 
     let uploaded = 0;
 
-    for (let file of files) {
-      showStatus(`Uploading ${uploaded + 1} of ${files.length}...`);
+    for (let file of imageFiles) {
+      showStatus(`Uploading ${uploaded + 1} of ${imageFiles.length}...`);
       try {
         // Upload to Firebase Storage
         const timestamp = Date.now();
@@ -551,7 +562,7 @@
         });
 
         uploaded++;
-        progressBar.style.width = (uploaded / files.length * 100) + '%';
+        progressBar.style.width = (uploaded / imageFiles.length * 100) + '%';
       } catch (err) {
         console.error('Upload error:', err);
         showStatus(`Error uploading file`, 'error');
@@ -566,8 +577,30 @@
       showStatus('');
     }, 3000);
 
-    e.target.value = '';
     await loadMemes();
+  }
+
+  document.getElementById('fileInput').addEventListener('change', async function (e) {
+    await handleFiles(e.target.files);
+    e.target.value = '';
+  });
+
+  // Drag and Drop
+  const dropZone = document.getElementById('dropZone');
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('drag-over');
+  });
+
+  dropZone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    await handleFiles(e.dataTransfer.files);
   });
 
   // ── Display Gallery ──────────────────────────────────────────
